@@ -1,17 +1,13 @@
-# requirement
-# pip install mysql-connector-python
-# pip install influxdb
-
-
-from mysql.connector import connect, Error
+from mysql.connector import connect
 from influxdb import InfluxDBClient
+import settings
 
 # variables
-host = "localhost"
-user = "root"
-password = "admin"
-db_MySQL = "SIP_Africa"
-db_InfluxDB = "test_SIP_1"
+host = settings.HOST
+user = settings.USER
+password = settings.PASSWORD
+db_MySQL = settings.DB_MYSQL
+db_InfluxDB = settings.DB_INFLUXDB
 
 # MySQL
 try:
@@ -27,34 +23,30 @@ by operators;"""
 
         with connection.cursor() as cursor:
             cursor.execute(show_db_query)
-            row = cursor.fetchall()
-except Error as e:
+            my_sql_data = cursor.fetchall()
+
+except Exception as e:
     print(e)
 
 # connect to InfluxDB
 try:
-    client_influx = InfluxDBClient(host=host, port=8086, )
+    client_influx = InfluxDBClient(host=host, port=8086)
     client_influx.switch_database(db_InfluxDB)
 
-# input data in influxDB via write_points
-    json_body = []
-    for result in row:
-        json_body = [
+    # input data in influxDB via write_points
+    for entry in my_sql_data:
+        influx_db_data = [
             {
                 "measurement": "SIP_call",
-                "tags": {
-                    "calling": result[0]
-                },
-                "fields": {
-                    "count": int(result[1])
-                }
+                "tags": {"calling": entry[0]},
+                "fields": {"count": int(entry[1])},
             }
         ]
-        print(json_body)
-        client_influx.write_points(json_body)
+        print(f"Writing '{influx_db_data}' to InfluxDB")
+        client_influx.write_points(influx_db_data)
 
-except Error as error:
-    print(error)
+except Exception as e:
+    print(e)
 
 finally:
     client_influx.close()
